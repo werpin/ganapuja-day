@@ -3,4 +3,6 @@
     <string name="open_description">Описание дня</string>
     <string name="special_day">Ганапуджа / Цог</string>
     <string name="error_loading">Ошибка загрузки: %1$s</string>
+    <string name="open_month">Месяц</string>
+    <string name="open_day">Сегодня</string>
 </resources>
