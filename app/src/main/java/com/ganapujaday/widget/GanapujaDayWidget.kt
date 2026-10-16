@@ -25,6 +25,9 @@ import com.ganapujaday.cache.TibetanDayCache
 import com.ganapujaday.core.Tyme4KtRepository
 import java.time.LocalDate
 import androidx.compose.ui.graphics.Color
+import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
+import androidx.glance.layout.width
 
 class GanapujaDayWidget : GlanceAppWidget() {
 
@@ -59,11 +62,11 @@ private fun WidgetContent(
     lunarDay: Int?,
     isSpecial: Boolean,
 ) {
-    Column(
+    Row(
         modifier = GlanceModifier
             .fillMaxSize()
-            .padding(4.dp)
-            .background(Color.Transparent)  // вместо GlanceTheme.colors.surface
+            .padding(horizontal = 8.dp)
+            .background(Color.Transparent)
             .clickable(actionStartActivity(intent)),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalAlignment = Alignment.CenterVertically,
@@ -73,10 +76,11 @@ private fun WidgetContent(
                 text = "$lunarDay ☾",
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurface,
-                    fontSize = 32.sp,
+                    fontSize = 24.sp,
                 ),
             )
             if (isSpecial) {
+                Spacer(GlanceModifier.width(6.dp))
                 Text(
                     text = "Ганапуджа",
                     style = TextStyle(
