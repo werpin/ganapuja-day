@@ -9,4 +9,5 @@
     <string name="lunar_day">Лунный день</string>
     <string name="lunar_day_value">%1$d</string>
     <string name="next_special_title">Ближайший день Ганапуджи</string>
+    <string name="widget_description">Тибетский лунный день</string>
 </resources>
