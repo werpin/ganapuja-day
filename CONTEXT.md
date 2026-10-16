@@ -31,6 +31,8 @@
 - ✅ `Tyme4KtRepository` — реализация через `SolarDay.fromYmd().getRabByungDay()`
 - ✅ `TibetanDayCache` — LinkedHashMap(accessOrder) + Mutex, maxSize=32
 - ✅ Unit-тесты: 5/5 зелёные (losar, special day, leap year, cache hit, concurrency)
+- ✅ `TibetAstroMedUrl` — формирователь URL с валидацией (ADR-011)
+- ✅ `TibetAstroMedUrlTest` — 10 тестов
 
 **In progress:**
 - Фаза 2 (UI) — не начата.
@@ -51,6 +53,7 @@
 - **ADR-008:** Не включать `isMinifyEnabled = true` на ранних фазах. Почему: усложняет отладку; APK 6.3 МБ укладывается в критерий. `[DEBT-low]` — включить в Фазе 4 перед публикацией.
 - **ADR-009:** `RabByungDay.year` — **грегорианский год**, не номер Rabjung-цикла. Для отображения «17-й цикл, Огненная Лошадь» парсить `raw` (`第十七饶迥火马年正月初一`). Для логики `SPECIAL_DAYS` используются только `month` и `day`. Проверено эмпирически: для 2026-02-18 `year=2026`, `month=1`, `day=1`.
 - **ADR-010:** `TibetanDayCache` использует `LinkedHashMap(accessOrder=true)` + `removeEldestEntry` вместо `android.util.LruCache`. Почему: `android.util.LruCache` не работает в JVM unit-тестах (stub-методы бросают RuntimeException). Весь доступ — через `Mutex`, включая быстрый путь. Плата — потеря «lock-free» чтения, выигрыш — детерминированные тесты и одинаковое поведение в JVM/Android.
+- **ADR-011:** `TibetAstroMedUrl` — объект-утилита с единственным методом `from(date): String`. Формат `M/d/yyyy` подтверждён вручную (2026-10-16). Диапазон года 1900..2100. Валидация через `require()` на Int-полях `LocalDate`, никаких строковых входных параметров. Плата: 1 `IllegalArgumentException` при выходе за диапазон — обрабатывать в UI как «дата вне поддерживаемого периода».
 
 # Constraints
 
