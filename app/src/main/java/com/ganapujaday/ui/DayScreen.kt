@@ -32,11 +32,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ganapujaday.R
-import com.ganapujaday.core.TibetanDateFormatter
+import com.ganapujaday.core.TibetanDay
 import com.ganapujaday.url.TibetAstroMedUrl
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -87,9 +88,9 @@ fun DayScreen(
                     verticalArrangement = Arrangement.Top,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    SolarDateHeader(s.date)
+                    TodayHeader(s.date)
                     Spacer(Modifier.height(24.dp))
-                    TibetanDateCard(s.day)
+                    LunarDayCard(s.day)
                     Spacer(Modifier.height(24.dp))
                     if (s.day.isSpecial) {
                         SpecialDayBanner()
@@ -104,6 +105,10 @@ fun DayScreen(
                     ) {
                         Text(stringResource(R.string.open_description))
                     }
+                    if (s.nextSpecial != null) {
+                        Spacer(Modifier.height(24.dp))
+                        NextSpecialCard(s.nextSpecial)
+                    }
                 }
             }
         }
@@ -111,17 +116,25 @@ fun DayScreen(
 }
 
 @Composable
-private fun SolarDateHeader(date: LocalDate) {
+private fun TodayHeader(date: LocalDate) {
     val formatted = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL))
-    Text(
-        text = formatted,
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Medium,
-    )
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = stringResource(R.string.today_prefix),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = formatted,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 @Composable
-private fun TibetanDateCard(day: com.ganapujaday.core.TibetanDay) {
+private fun LunarDayCard(day: TibetanDay) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -139,8 +152,14 @@ private fun TibetanDateCard(day: com.ganapujaday.core.TibetanDay) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = TibetanDateFormatter.format(day),
-                style = MaterialTheme.typography.titleLarge,
+                text = stringResource(R.string.lunar_day),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.lunar_day_value, day.day),
+                style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Medium,
             )
         }
@@ -166,6 +185,46 @@ private fun SpecialDayBanner() {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
+private fun NextSpecialCard(day: TibetanDay) {
+    val formatted = day.solarDate.format(
+        DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL)
+    )
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = stringResource(R.string.next_special_title),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = formatted,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = stringResource(R.string.lunar_day_value, day.day),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
         }
     }

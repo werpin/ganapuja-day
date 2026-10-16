@@ -5,4 +5,8 @@
     <string name="error_loading">Ошибка загрузки: %1$s</string>
     <string name="open_month">Месяц</string>
     <string name="open_day">Сегодня</string>
+    <string name="today_prefix">Сегодня:</string>
+    <string name="lunar_day">Лунный день</string>
+    <string name="lunar_day_value">%1$d</string>
+    <string name="next_special_title">Ближайший день Ганапуджи</string>
 </resources>

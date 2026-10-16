@@ -1,5 +1,6 @@
 package com.ganapujaday.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,12 +19,17 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -31,22 +37,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ganapujaday.R
 import com.ganapujaday.core.TibetanDay
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.TopAppBar
-import androidx.compose.ui.res.stringResource
-import com.ganapujaday.R
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,37 +100,33 @@ fun MonthScreen(
 
 @Composable
 private fun CalendarGrid(
-    yearMonth: java.time.YearMonth,
+    yearMonth: YearMonth,
     days: List<TibetanDay>,
     onDayClick: (LocalDate) -> Unit,
 ) {
-    // offset = сколько пустых ячеек в начале: Пн=0, Вт=1, ..., Вс=6
     val offset = days.first().solarDate.dayOfWeek.value - 1
+    val today = LocalDate.now()
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(7),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(4.dp),
     ) {
-        item(span = { GridItemSpan(7) }) {
-            MonthHeader(yearMonth)
-        }
-        item(span = { GridItemSpan(7) }) {
-            WeekdayHeader()
-        }
-        items(offset) {
-            // Пустые ячейки до первого дня месяца
-            Box(modifier = Modifier.aspectRatio(0.85f))
-        }
+        item(span = { GridItemSpan(7) }) { MonthHeader(yearMonth) }
+        item(span = { GridItemSpan(7) }) { WeekdayHeader() }
+        items(offset) { Box(modifier = Modifier.aspectRatio(0.85f)) }
         items(days) { day ->
-            DayCell(day = day, onClick = { onDayClick(day.solarDate) })
+            DayCell(
+                day = day,
+                isToday = day.solarDate == today,
+                onClick = { onDayClick(day.solarDate) },
+            )
         }
     }
 }
 
 @Composable
-private fun MonthHeader(yearMonth: java.time.YearMonth) {
-    // "Октябрь 2026" в локали ru
+private fun MonthHeader(yearMonth: YearMonth) {
     val title = yearMonth.month
         .getDisplayName(TextStyle.FULL_STANDALONE, Locale.forLanguageTag("ru"))
         .replaceFirstChar { it.uppercase() } + " ${yearMonth.year}"
@@ -161,11 +158,17 @@ private fun WeekdayHeader() {
 }
 
 @Composable
-private fun DayCell(day: TibetanDay, onClick: () -> Unit) {
+private fun DayCell(day: TibetanDay, isToday: Boolean, onClick: () -> Unit) {
     val bgColor = if (day.isSpecial) {
         MaterialTheme.colorScheme.tertiaryContainer
     } else {
         Color.Transparent
+    }
+
+    val border = if (isToday) {
+        BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+    } else {
+        null
     }
 
     Card(
@@ -173,6 +176,7 @@ private fun DayCell(day: TibetanDay, onClick: () -> Unit) {
             .aspectRatio(0.85f)
             .padding(2.dp),
         colors = CardDefaults.cardColors(containerColor = bgColor),
+        border = border,
         onClick = onClick,
     ) {
         Column(
