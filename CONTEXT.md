@@ -25,17 +25,15 @@
 
 # State
 
-**Done:**
-- ✅ **0.1** Формат URL подтверждён: `M/d/yyyy` (месяц/день/год). Пример: `9/13/2026` = 13 сентября 2026.
-- ✅ **0.2** Окружение: Debian 13 + XFCE, JDK 21, KVM, Android Studio 2026.2.1, GitHub CLI.
-- ✅ **0.3** Зависимости: `cn.6tail:tyme4kt:1.5.0` → `tyme4kt-android:1.5.0` (без iOS/Wasm/JS). APK release unsigned = **6.3 МБ** (< 15 МБ).
-- ✅ **0.4** Бенчмарк: p50 = **6.18 мс**, p95 = **7.77 мс**, max = 11.32 мс, avg = 6.40 мс. Гипотеза 50–200 мс опровергнута.
-- ✅ **0.5** Сверка 10 дат с эталоном Phugpa (Lotsawa House / Merigar / Xinhua): **10/10 совпадений**. Losar 2026 = 2026-02-18.
-- ✅ **Проект создан:** Empty Activity scaffold, Git init, GitHub repo `ganapuja-day`.
-- ✅ **Тест:** `Tyme4ktBenchmarkTest` с двумя методами (`benchmarkTibetanDayCalculation`, `printTibetanDatesForCrossCheck`).
+**Done (Фаза 1):**
+- ✅ `TibetanDay` — data-класс (year, month, day, isLeapMonth, isLeapDay, raw, isSpecial)
+- ✅ `TibetanDayRepository` — интерфейс с `suspend fun get(date): TibetanDay`
+- ✅ `Tyme4KtRepository` — реализация через `SolarDay.fromYmd().getRabByungDay()`
+- ✅ `TibetanDayCache` — LinkedHashMap(accessOrder) + Mutex, maxSize=32
+- ✅ Unit-тесты: 5/5 зелёные (losar, special day, leap year, cache hit, concurrency)
 
 **In progress:**
-- Фаза 1 (Ядро) — не начата.
+- Фаза 2 (UI) — не начата.
 
 **Broken / Unknown:**
 - `[?]` Точный набор getter-методов у `RabByungDay` (для программного извлечения day/month/year вместо парсинга строки `第十七饶迥火马年正月初一`).
@@ -51,6 +49,8 @@
 - **ADR-006:** Не использовать Docker для dev-окружения. Почему: GUI-проброс X11, `/dev/kvm`, USB создают накладные расходы; нативная установка в `/opt` проще. Docker оправдан только в CI/CD.
 - **ADR-007:** Не добавлять отдельный `tyme4kt-jvm`. Почему: артефакт не существует в Maven Central; `tyme4kt-android:1.5.0` уже JVM-совместимый таргет, APK 6.3 МБ.
 - **ADR-008:** Не включать `isMinifyEnabled = true` на ранних фазах. Почему: усложняет отладку; APK 6.3 МБ укладывается в критерий. `[DEBT-low]` — включить в Фазе 4 перед публикацией.
+- **ADR-009:** `RabByungDay.year` — **грегорианский год**, не номер Rabjung-цикла. Для отображения «17-й цикл, Огненная Лошадь» парсить `raw` (`第十七饶迥火马年正月初一`). Для логики `SPECIAL_DAYS` используются только `month` и `day`. Проверено эмпирически: для 2026-02-18 `year=2026`, `month=1`, `day=1`.
+- **ADR-010:** `TibetanDayCache` использует `LinkedHashMap(accessOrder=true)` + `removeEldestEntry` вместо `android.util.LruCache`. Почему: `android.util.LruCache` не работает в JVM unit-тестах (stub-методы бросают RuntimeException). Весь доступ — через `Mutex`, включая быстрый путь. Плата — потеря «lock-free» чтения, выигрыш — детерминированные тесты и одинаковое поведение в JVM/Android.
 
 # Constraints
 
@@ -63,35 +63,31 @@
 - **Дев-окружение:** нативная установка, не Docker.
 - **Имена:** не использовать `LunarCache` / `LunarDay` (двусмысленно с астрономией). Использовать `TibetanDay*`.
 - **Kotlin API `tyme4kt`:** метод называется `getRabByungDay()` (не свойство `rabByungDay`). Пример: `SolarDay.fromYmd(y, m, d).getRabByungDay()`.
+- **`RabByungDay.month` и `day`** — использовать для логики. `year` — только грегорианский, для сортировки/отладки.
+- **Високосный месяц:** `RabByungDay` не имеет отдельного `isLeapMonth()`. Отрицательный `month` означает високосный месяц (аналогично `day`). Проверить при первом попадании високосного месяца: `[?]`.
+- **`android.util.LruCache`** не использовать — заменён на `LinkedHashMap` (см. ADR-010).
 
 # Next
 
-**Фаза 1: Ядро (3–4 дня) — следующая**
+**Фаза 2: UI (5–7 дней) — следующая**
 
-1. `interface TibetanDayRepository`
-   - `suspend fun get(date: LocalDate): TibetanDay`
-   - `data class TibetanDay(year, month, day, isLeapMonth, isLeapDay, isSpecial, rawString)`
-   - `isSpecial = day in setOf(10, 15, 25, 30)`
-2. `class Tyme4KtRepository : TibetanDayRepository`
-   - Обёртка над `SolarDay.fromYmd(y, m, d).getRabByungDay()`
-   - Парсинг строки `第十七饶迥火马年正月初一` **или** поиск getter-методов у `RabByungDay` (см. `[?]` выше).
-3. `class TibetanDayCache`
-   - `LruCache<LocalDate, TibetanDay>(32)` + `Mutex`
-   - `suspend fun get(date): TibetanDay`
-4. `class TibetAstroMedUrl`
-   - `fun from(date: LocalDate): String`
-   - `require()` на диапазоны (year 1900..2100, month 1..12, day 1..31)
-   - Формат: `"https://tibetastromed.ru/docom.php?tdat=%d/%d/%d&tipv=0&type=new&lang=ru"` (month, day, year)
-5. Unit-тесты:
-   - 10 дат из 0.5 → `TibetanDay` с ожидаемыми значениями
-   - Граничные: 2024-02-29, 2026-12-31, 2027-01-01
-   - `TibetAstroMedUrl`: валидация, формат, границы диапазонов
-   - Кэш: hit/miss, потокобезопасность (запуск из двух корутин)
+1. **Главный экран (DayScreen):**
+   - Григорианская дата крупно.
+   - Тибетская дата: `month` и `day` из `TibetanDay`, плюс `raw` для цикла/животного/элемента.
+   - Индикатор особого дня (10, 15, 25, 30) — цветной бейдж.
+   - Кнопка «Описание дня» → `Intent.ACTION_VIEW` с URL из `TibetAstroMedUrl` (Фаза 2 также).
+2. **Месячный экран (MonthScreen):**
+   - `LazyVerticalGrid(7)` — сетка календаря.
+   - В ячейке — григорианское число + тибетский день (мелко).
+   - Особые дни подсвечены.
+   - Клик по дню → DayScreen для этой даты.
+3. **Навигация:** `androidx.navigation:navigation-compose` (одна зависимость).
+4. **Тема:** Material 3, цветовая схема — финальная (сейчас дефолтная из шаблона).
+5. **Локализация:** `values/strings.xml` (en), `values-ru/strings.xml` (ru).
+6. **URL-модуль (Фаза 1, отложен):** `TibetAstroMedUrl.from(date): String` с `require()`-валидацией. Тесты: 5 дат → ожидаемый URL.
 
-**Фаза 2: UI (5–7 дней)**
-- `DayScreen`: григорианская + тибетская дата, индикатор особого дня, кнопка «Описание»
-- `MonthScreen`: `LazyVerticalGrid(7)`, ячейка через `remember(date) { cache.get(date) }`
-- Material 3 тема, локализация ru + en
+**`[?]` уточнить перед Фазой 2:**
+- Формат отображения тибетской даты: только `day` + `month` (например, «1 день 1 месяца») или с циклом/животным из `raw`?
 
 **Фаза 3: Виджет (4–5 дней)**
 - `GlanceAppWidget` + `GlanceAppWidgetReceiver`
