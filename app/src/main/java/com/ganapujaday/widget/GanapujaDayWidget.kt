@@ -3,6 +3,7 @@ package com.ganapujaday.widget
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -10,24 +11,21 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
-import androidx.glance.layout.Column
+import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
+import androidx.glance.layout.width
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.ganapujaday.MainActivity
 import com.ganapujaday.cache.TibetanDayCache
 import com.ganapujaday.core.Tyme4KtRepository
 import java.time.LocalDate
-import androidx.compose.ui.graphics.Color
-import androidx.glance.layout.Row
-import androidx.glance.layout.Spacer
-import androidx.glance.layout.width
 
 class GanapujaDayWidget : GlanceAppWidget() {
 
@@ -40,8 +38,6 @@ class GanapujaDayWidget : GlanceAppWidget() {
             null
         }
 
-        // Intent создаётся здесь, потому что context доступен только в provideGlance.
-        // Внутри provideContent { } context не в scope.
         val intent = Intent(context, MainActivity::class.java)
 
         provideContent {
@@ -96,8 +92,4 @@ private fun WidgetContent(
             )
         }
     }
-}
-
-class GanapujaDayWidgetReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget = GanapujaDayWidget()
 }
