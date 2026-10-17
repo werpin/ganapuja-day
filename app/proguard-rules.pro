@@ -19,3 +19,9 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# tyme4kt: сохраняем классы тибетского календаря от обфускации на случай рефлексии
+-keep class com.tyme.** { *; }
+
+# Glance: стандартные правила для виджетов (обычно R8 справляется, но на всякий случай)
+-keep class androidx.glance.** { *; }

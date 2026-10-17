@@ -1,128 +1,181 @@
 # Project
 
-**Name:** ganapuja-day
+**Name:** Ganapuja Day
 **Repo:** github.com/<user>/ganapuja-day
-**Goal:** Android-приложение с домашним виджетом для отображения текущего тибетского лунного дня (традиция Phugpa), подсветки особых дней практики (10, 15, 25, 30 — Ганапуджа / Цог), месячного вида с подписями лунных дней и перехода на описание дня на `tibetastromed.ru`.
+**Version:** 1.0.0
+**License:** MIT
+**Goal:** Android-приложение с домашним виджетом для отображения тибетского лунного дня (традиция Phugpa), подсветки особых дней практики (10, 15, 25, 30 — Ганапуджа / Цог), месячного вида с навигацией и иконками фаз луны, переключателя темы и перехода на описание дня на `tibetastromed.ru`.
 
 **Stack:**
-- Kotlin (JVM), Android, min SDK 24
+- Kotlin (JVM), Android, min SDK 26, target SDK 36
 - Jetpack Compose + Material 3
-- Jetpack Glance (виджет)
+- Jetpack Glance 1.1.1 (виджет)
 - `cn.6tail:tyme4kt:1.5.0` (тибетский календарь, Phugpa)
-- `AlarmManager.setAndAllowWhileIdle` + `WorkManager` fallback
-- `LruCache(32)` + `Mutex` (in-memory, без БД)
+- `androidx.navigation:navigation-compose:2.8.4`
+- `AlarmManager.setAndAllowWhileIdle` + `BootReceiver` + `WidgetUpdateReceiver`
+- `LinkedHashMap(accessOrder=true) + Mutex` (in-memory кэш, без БД)
+- R8: `isMinifyEnabled = true`, `isShrinkResources = true`
 - Gradle Kotlin DSL
 
-**Key modules (целевые):**
-- `core` — `TibetanDayRepository` (interface), `Tyme4KtRepository` (impl)
-- `cache` — `TibetanDayCache` (LruCache + Mutex)
-- `url` — `TibetAstroMedUrl` (формирование и валидация)
-- `ui` — `DayScreen`, `MonthScreen`
-- `widget` — `GlanceAppWidget`, `GlanceAppWidgetReceiver`
-- `scheduler` — `AlarmScheduler`, `BootReceiver`
+**Key modules:**
+- `core/` — `TibetanDay`, `TibetanDayRepository`, `Tyme4KtRepository`, `TibetanDateFormatter`, `SpecialDays`, `MoonIcons`
+- `cache/` — `TibetanDayCache` (LruCache-эквивалент + Mutex)
+- `url/` — `TibetAstroMedUrl`
+- `ui/` — `DayScreen`, `DayViewModel`, `MonthScreen`, `MonthViewModel`, `ThemeMenuButton`, `AppTheme`
+- `widget/` — `GanapujaDayWidget`, `GanapujaDayWidgetReceiver`, `WidgetScheduler`, `WidgetUpdateReceiver`, `BootReceiver`
+- `MainActivity` — точка входа, `NavHost`
 
-**Dev environment:** Debian 13 (trixie) + XFCE, Android Studio 2026.2.1, нативная установка (без Docker).
+**Dev environment:** Debian 13 (trixie) + XFCE, JDK 21, Android Studio 2026.2.1, KVM, нативная установка (без Docker).
 
 # State
 
-**Done (Фаза 1):**
-- ✅ `TibetanDay` — data-класс (year, month, day, isLeapMonth, isLeapDay, raw, isSpecial)
-- ✅ `TibetanDayRepository` — интерфейс с `suspend fun get(date): TibetanDay`
-- ✅ `Tyme4KtRepository` — реализация через `SolarDay.fromYmd().getRabByungDay()`
-- ✅ `TibetanDayCache` — LinkedHashMap(accessOrder) + Mutex, maxSize=32
-- ✅ Unit-тесты: 5/5 зелёные (losar, special day, leap year, cache hit, concurrency)
-- ✅ `TibetAstroMedUrl` — формирователь URL с валидацией (ADR-011)
-- ✅ `TibetAstroMedUrlTest` — 10 тестов
+**Done (Фазы 0–4):**
+
+**Фаза 0 — Спайк и замеры:**
+- ✅ Формат URL подтверждён: `M/d/yyyy` (месяц/день/год).
+- ✅ Окружение: Debian 13 + XFCE, JDK 21, KVM, Android Studio 2026.2.1.
+- ✅ Зависимости: `tyme4kt:1.5.0` → `tyme4kt-android:1.5.0` (без iOS/Wasm/JS).
+- ✅ Бенчмарк: p50 = 6.18 мс, p95 = 7.77 мс (гипотеза 50–200 мс опровергнута).
+- ✅ Сверка 10 дат с эталоном: 10/10.
+
+**Фаза 1 — Ядро:**
+- ✅ `TibetanDay`, `TibetanDayRepository`, `Tyme4KtRepository`.
+- ✅ `TibetanDayCache` (LinkedHashMap + Mutex).
+- ✅ `TibetAstroMedUrl` (валидация через `require()`).
+- ✅ `TibetanDateFormatter` (парсинг raw, без склонений).
+- ✅ `SpecialDays.findNext` (поиск вперёд до 60 дней).
+- ✅ `MoonIcons.moonIconFor` (4 фазы).
+- ✅ Unit-тесты: 22 (core, cache, url, formatter, special).
+
+**Фаза 2 — UI:**
+- ✅ `DayScreen`: «Сегодня: <дата>», лунный день крупно, бейдж «Ганапуджа», кнопка «Описание», блок «Ближайший день Ганапуджи» (скрыт, если сегодня особый).
+- ✅ `MonthScreen`: `LazyVerticalGrid(7)`, навигация по месяцам (←/→), иконки фаз луны в ячейках, обводка сегодняшнего дня.
+- ✅ Навигация через `epochDay` (long), клик по дню → `DayScreen`.
+- ✅ Переключатель темы (system/light/dark) через `LocalThemeController` (`CompositionLocalProvider`).
+- ✅ Тема сохраняется в `SharedPreferences`.
+
+**Фаза 3 — Виджет:**
+- ✅ `GlanceAppWidget` 2×1, прозрачный фон, число + иконка фазы луны + «Ганапуджа».
+- ✅ `AlarmManager.setAndAllowWhileIdle` на полночь.
+- ✅ `BootReceiver` — перепланирование после reboot.
+- ✅ `WidgetUpdateReceiver` — реакция на `DATE_CHANGED`, `TIMEZONE_CHANGED`, `TIME_SET`.
+- ✅ Клик по виджету → `MainActivity`.
+
+**Фаза 4 — Релиз (в работе):**
+- ✅ R8: `isMinifyEnabled = true`, `isShrinkResources = true`. APK 6.3 → 2.4 МБ.
+- ✅ ProGuard-правила для `tyme4kt` и Glance.
+- ⚠️ `signingConfig` временно = debug для тестирования release. **Заменить на настоящий keystore перед публикацией.** `[DEBT-high]`.
+- ⏳ `README.md`, `CONTEXT.md` — обновлены.
+- ⏳ `CHANGELOG.md` — создан.
+- ⏳ APK на GitHub Releases — не опубликован.
 
 **In progress:**
-- Фаза 2 (UI) — не начата.
+- Финальная подпись APK (настоящий keystore).
+- Публикация APK на GitHub Releases.
 
 **Broken / Unknown:**
-- `[?]` Точный набор getter-методов у `RabByungDay` (для программного извлечения day/month/year вместо парсинга строки `第十七饶迥火马年正月初一`).
-- `[?]` API `tyme4kt` для определения признака високосного дня/месяца (`isLeapMonth`, `isLeapDay`).
+- `[?]` Високосные дни/месяцы в `RabByungDay`: как `tyme4kt` маркирует skipped/duplicate дни. `[DEBT-low]`.
+- `[?]` `RabByungDay` не экспонирует признак високосного месяца отдельным геттером — `isLeapMonth` может быть всегда `false`. `[DEBT-low]`.
 
 # Decisions
 
-- **ADR-001:** Kotlin + Jetpack Compose + Jetpack Glance. Почему: виджет нативный, `tyme4kt` — Kotlin-native, оффлайн прост. Альтернативы (Flutter, KMP, React Native) дают кроссплатформенность вне скоупа и усложняют виджет.
-- **ADR-002:** `AlarmManager.setAndAllowWhileIdle` (inexact) + `WorkManager.PeriodicWorkRequest(24h)` fallback вместо `setExactAndAllowWhileIdle`. Почему: `SCHEDULE_EXACT_ALARM` не гарантирован на Android 14+, а ±10 мин для суточного календаря приемлемо. `[DEBT-low]`: опциональный exact в настройках при жалобах.
-- **ADR-003:** `TibetanDayCache` = `LruCache(32)` + `Mutex`, `suspend fun get(date)`. Почему: потокобезопасность для виджета и UI; БД не нужна. После 0.4 — кэш не критичен для производительности (p95 7.77 мс), но полезен для UI-плавности месячного вида. `[DEBT-med]`: Room только если понадобится навигация по годам.
-- **ADR-004:** URL `tibetastromed.ru` формируется только из `Int`-компонентов (year, month, day) с `require()`-валидацией диапазонов. Формат `M/d/yyyy` в константе `URL_DATE_FORMAT`. Почему: защита от SSRF-подобных атак через deep links / шаринг в будущем.
-- **ADR-005:** План работ — 5 фаз. Фазы 0.1 и 0.3 — жёсткие блокеры (пройдены). Фаза 0.4 — верификация гипотезы о производительности (пройдена).
-- **ADR-006:** Не использовать Docker для dev-окружения. Почему: GUI-проброс X11, `/dev/kvm`, USB создают накладные расходы; нативная установка в `/opt` проще. Docker оправдан только в CI/CD.
-- **ADR-007:** Не добавлять отдельный `tyme4kt-jvm`. Почему: артефакт не существует в Maven Central; `tyme4kt-android:1.5.0` уже JVM-совместимый таргет, APK 6.3 МБ.
-- **ADR-008:** Не включать `isMinifyEnabled = true` на ранних фазах. Почему: усложняет отладку; APK 6.3 МБ укладывается в критерий. `[DEBT-low]` — включить в Фазе 4 перед публикацией.
-- **ADR-009:** `RabByungDay.year` — **грегорианский год**, не номер Rabjung-цикла. Для отображения «17-й цикл, Огненная Лошадь» парсить `raw` (`第十七饶迥火马年正月初一`). Для логики `SPECIAL_DAYS` используются только `month` и `day`. Проверено эмпирически: для 2026-02-18 `year=2026`, `month=1`, `day=1`.
-- **ADR-010:** `TibetanDayCache` использует `LinkedHashMap(accessOrder=true)` + `removeEldestEntry` вместо `android.util.LruCache`. Почему: `android.util.LruCache` не работает в JVM unit-тестах (stub-методы бросают RuntimeException). Весь доступ — через `Mutex`, включая быстрый путь. Плата — потеря «lock-free» чтения, выигрыш — детерминированные тесты и одинаковое поведение в JVM/Android.
-- **ADR-011:** `TibetAstroMedUrl` — объект-утилита с единственным методом `from(date): String`. Формат `M/d/yyyy` подтверждён вручную (2026-10-16). Диапазон года 1900..2100. Валидация через `require()` на Int-полях `LocalDate`, никаких строковых входных параметров. Плата: 1 `IllegalArgumentException` при выходе за диапазон — обрабатывать в UI как «дата вне поддерживаемого периода».
+**ADR-001:** Kotlin + Jetpack Compose + Jetpack Glance. Почему: виджет нативный, `tyme4kt` — Kotlin-native, оффлайн прост. Альтернативы (Flutter, KMP, React Native) дают кроссплатформенность вне скоупа и усложняют виджет.
+
+**ADR-002:** `AlarmManager.setAndAllowWhileIdle` (inexact) вместо `setExactAndAllowWhileIdle`. Почему: `SCHEDULE_EXACT_ALARM` не гарантирован на Android 14+, а ±9 мин для суточного календаря приемлемо. `[DEBT-low]`: WorkManager fallback, если появятся жалобы.
+
+**ADR-003:** `TibetanDayCache` = `LinkedHashMap(accessOrder=true)` + `Mutex`, `suspend fun get(date)`. Почему: `android.util.LruCache` не работает в JVM unit-тестах (stub-методы бросают RuntimeException). Весь доступ через `Mutex`, включая быстрый путь. Плата — потеря lock-free чтения.
+
+**ADR-004:** URL `tibetastromed.ru` формируется только из `Int`-компонентов с `require()`-валидацией диапазонов 1900..2100. Формат `M/d/yyyy` в константе. Почему: защита от SSRF-подобных атак через deep links / шаринг.
+
+**ADR-005:** План работ — 5 фаз. Фазы 0.1 и 0.3 — жёсткие блокеры (пройдены). Фаза 0.4 — верификация гипотезы о производительности (пройдена).
+
+**ADR-006:** Не использовать Docker для dev-окружения. Почему: GUI-проброс X11, `/dev/kvm`, USB создают накладные расходы; нативная установка в `/opt` проще. Docker оправдан только в CI/CD.
+
+**ADR-007:** Не добавлять отдельный `tyme4kt-jvm`. Почему: артефакт не существует в Maven Central; `tyme4kt-android:1.5.0` уже JVM-совместимый таргет.
+
+**ADR-008:** `isMinifyEnabled = true` включать только в Фазе 4. Почему: усложняет отладку. APK 6.3 МБ укладывался в критерий.
+
+**ADR-009:** `RabByungDay.year` — **грегорианский год**, не номер Rabjung-цикла. Для отображения цикла (17-й, Огненная Лошадь) парсить `raw` (`第十七饶迥火马年正月初一`). Для логики `SPECIAL_DAYS` используются только `month` и `day`. Проверено эмпирически: для 2026-02-18 `year=2026`, `month=1`, `day=1`.
+
+**ADR-010:** `TibetanDayCache` использует `LinkedHashMap(accessOrder=true) + removeEldestEntry` вместо `android.util.LruCache`. См. ADR-003.
+
+**ADR-011:** `TibetAstroMedUrl` — объект-утилита с единственным методом `from(date): String`. Диапазон года 1900..2100. Валидация через `require()` на Int-полях `LocalDate`.
+
+**ADR-012:** Навигация через `epochDay` (Long), не ISO-строку. Почему: проще парсить, нет проблем с локалью, компактнее. `LocalDate.ofEpochDay(...)` и `LocalDate.toEpochDay()` — симметричны.
+
+**ADR-013:** `LocalThemeController` через `CompositionLocalProvider` (`staticCompositionLocalOf`) вместо `ThemeSetterHolder`. Почему: идиоматичный Compose-способ шаринга состояния, не требует проброса параметров через все экраны.
+
+**ADR-014:** Тема хранится в `SharedPreferences`, не DataStore. Почему: DataStore требует ещё одну зависимость ради одного enum. `[DEBT-low]`: перейти при первой реконфигурации хранилища.
+
+**ADR-015:** `MonthViewModel.load` использует `while`-цикл, не `Sequence.map`. Почему: `suspend fun cache.get()` нельзя вызвать из не-suspend лямбды `Sequence.map`.
+
+**ADR-016:** Виджет без WorkManager fallback. Почему: `AlarmManager` + `BootReceiver` + `WidgetUpdateReceiver` покрывают 95% устройств. `[DEBT-low]`: добавить `WorkManager` при жалобах на MIUI/EMUI.
+
+**ADR-017:** Виджет: `updatePeriodMillis="0"`. Почему: не полагаемся на системное обновление (< 30 минут игнорируется, точность не гарантирована).
+
+**ADR-018:** Виджет: `Intent` создаётся в `provideGlance`, передаётся в `WidgetContent` параметром. Почему: Glance не наследует `context` в `@Composable`, а `actionStartActivity` принимает только `Intent` в версии 1.1.1.
+
+**ADR-019:** Иконки фаз луны: 4 vector-drawable (waxing/full/waning/new), tinted через `ColorFilter.tint(ColorProvider)`. `moonIconFor` вынесен в `core`, шарится между UI и виджетом. Почему: единая логика выбора иконки для обоих контекстов.
+
+**ADR-020:** R8: `isMinifyEnabled = true`, `isShrinkResources = true`, ProGuard-правила для `tyme4kt` и Glance. Почему: APK 6.3 → 2.4 МБ (62% уменьшение). Проверено: ничего не сломалось.
+
+**ADR-021:** `signingConfig = signingConfigs.debug` для release временно. Почему: позволяет тестировать release-сборку на эмуляторе. **Заменить на настоящий keystore перед публикацией.** `[DEBT-high]`.
 
 # Constraints
 
-- **Традиция:** только **Phugpa**. Tsurphu-расхождения — не баг. Указать в README и в описании на F-Droid.
+- **Традиция:** только **Phugpa**. Tsurphu-расхождения — не баг. Указано в README.
 - **Разрешения:** только `RECEIVE_BOOT_COMPLETED`. Запрещено: `INTERNET`, `WAKE_LOCK`, `SCHEDULE_EXACT_ALARM`, `FOREGROUND_SERVICE`.
-- **Не использовать:** Room (до обоснованной необходимости), Foreground Service, `updatePeriodMillis` в XML виджета (игнорируется для значений < 30 мин).
-- **`tyme4kt`:** зафиксировать версию `1.5.0`. Реализацию обернуть в `TibetanDayRepository` — при расхождениях подменить движок без переписывания UI.
-- **URL:** валидация через `Int`, `require()` на диапазоны, константа `URL_DATE_FORMAT = "%d/%d/%d"` (month, day, year) в одном месте.
-- **Формат URL подтверждён:** `M/d/yyyy`. Пример: 13 сентября 2026 → `tdat=9/13/2026`.
-- **Дев-окружение:** нативная установка, не Docker.
+- **Не использовать:** Room (до обоснованной необходимости), Foreground Service, `updatePeriodMillis` в XML виджета.
+- **`tyme4kt`:** версия `1.5.0`. Обёрнут в `TibetanDayRepository` — при расхождениях подменить движок без переписывания UI.
+- **URL:** валидация через `Int`, `require()` на диапазоны, константа формата в одном месте. Формат `M/d/yyyy` подтверждён вручную.
+- **Котлин API `tyme4kt`:**
+  - `SolarDay.fromYmd(y, m, d).getRabByungDay()` — метод, не свойство.
+  - `rab.year`, `rab.month`, `rab.day` — Kotlin properties, не Java getters (`getYear()` не существует).
+  - `GlanceTheme` — из `androidx.glance`, не из `androidx.glance.material3`.
+  - `dp` / `sp` — из `androidx.compose.ui.unit`, не из `androidx.glance.unit` (в Glance 1.1.1 их там нет).
+  - `ColorFilter` — из `androidx.glance`, не из `androidx.glance.color`.
 - **Имена:** не использовать `LunarCache` / `LunarDay` (двусмысленно с астрономией). Использовать `TibetanDay*`.
-- **Kotlin API `tyme4kt`:** метод называется `getRabByungDay()` (не свойство `rabByungDay`). Пример: `SolarDay.fromYmd(y, m, d).getRabByungDay()`.
-- **`RabByungDay.month` и `day`** — использовать для логики. `year` — только грегорианский, для сортировки/отладки.
-- **Високосный месяц:** `RabByungDay` не имеет отдельного `isLeapMonth()`. Отрицательный `month` означает високосный месяц (аналогично `day`). Проверить при первом попадании високосного месяца: `[?]`.
-- **`android.util.LruCache`** не использовать — заменён на `LinkedHashMap` (см. ADR-010).
+- **Дев-окружение:** нативная установка, не Docker.
+- **Локализация:** русский. Английский — `[DEBT-low]`.
+- **Виджет:** только `home_screen`, не `keyguard`.
 
 # Next
 
-**Фаза 2: UI (5–7 дней) — следующая**
+**Фаза 4 — оставшиеся шаги:**
 
-1. **Главный экран (DayScreen):**
-   - Григорианская дата крупно.
-   - Тибетская дата: `month` и `day` из `TibetanDay`, плюс `raw` для цикла/животного/элемента.
-   - Индикатор особого дня (10, 15, 25, 30) — цветной бейдж.
-   - Кнопка «Описание дня» → `Intent.ACTION_VIEW` с URL из `TibetAstroMedUrl` (Фаза 2 также).
-2. **Месячный экран (MonthScreen):**
-   - `LazyVerticalGrid(7)` — сетка календаря.
-   - В ячейке — григорианское число + тибетский день (мелко).
-   - Особые дни подсвечены.
-   - Клик по дню → DayScreen для этой даты.
-3. **Навигация:** `androidx.navigation:navigation-compose` (одна зависимость).
-4. **Тема:** Material 3, цветовая схема — финальная (сейчас дефолтная из шаблона).
-5. **Локализация:** `values/strings.xml` (en), `values-ru/strings.xml` (ru).
-6. **URL-модуль (Фаза 1, отложен):** `TibetAstroMedUrl.from(date): String` с `require()`-валидацией. Тесты: 5 дат → ожидаемый URL.
-
-**`[?]` уточнить перед Фазой 2:**
-- Формат отображения тибетской даты: только `day` + `month` (например, «1 день 1 месяца») или с циклом/животным из `raw`?
-
-**Фаза 3: Виджет (4–5 дней)**
-- `GlanceAppWidget` + `GlanceAppWidgetReceiver`
-- `AlarmScheduler` (`setAndAllowWhileIdle`) + `WorkManager` fallback
-- `BootReceiver` на `RECEIVE_BOOT_COMPLETED`
-- Клик по виджету → deep link в Activity или `ACTION_VIEW` на tibetastromed.ru
-- Замер холодного старта < 500 мс
-
-**Фаза 4: Публикация (2–3 дня)**
-- `isMinifyEnabled = true`, `isShrinkResources = true` (закрыть `[DEBT-low]` ADR-008)
-- F-Droid metadata
-- README с дисклеймером о Phugpa
-- Подписанный APK, воспроизводимая сборка
+1. **Настоящая подпись APK** (`[DEBT-high]` ADR-021):
+   - Создать keystore: `keytool -genkey -v -keystore ganapuja-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias ganapuja`
+   - Настроить `signingConfigs` в `build.gradle.kts` с чтением пароля из `local.properties` или env.
+   - Заменить `signingConfig = signingConfigs.debug` на `signingConfig = signingConfigs.release`.
+   - `.gitignore`: `*.jks`, `local.properties`.
+2. **Публикация APK на GitHub Releases:**
+   - `git tag v1.0.0`
+   - `git push origin v1.0.0`
+   - На GitHub: Releases → New release → загрузить `app-release.apk`.
+3. **Финальная проверка:**
+   - Пройти чек-лист на чистом устройстве / эмуляторе с чистой установкой.
+   - Проверить, что виджет добавляется, обновляется в полночь, перепланируется после reboot.
 
 **Реестр `[DEBT]`:**
-- `[DEBT-low]` Опциональный `SCHEDULE_EXACT_ALARM` в настройках (если жалобы на точность).
-- `[DEBT-low]` `isMinifyEnabled = true` для release (Фаза 4).
-- `[DEBT-med]` Room-кэш (если понадобится навигация по годам).
-- `[DEBT-med]` Рефактор планировщика при проблемах с inexact alarm.
+
+- `[DEBT-high]` Настоящая подпись APK (keystore, `signingConfigs.release`).
+- `[DEBT-low]` WorkManager fallback для виджета (MIUI/EMUI).
+- `[DEBT-low]` DataStore вместо `SharedPreferences` для темы.
+- `[DEBT-low]` Английская локализация.
+- `[DEBT-low]` Параметризация маршрута `month/{year}/{month}` (сейчас месяц не сохраняется при возврате из `DayScreen`).
+- `[DEBT-low]` Ограничение диапазона навигации по месяцам (1900..2100).
+- `[DEBT-low]` `SavedStateHandle` в `MonthViewModel` для сохранения месяца.
+- `[DEBT-low]` Обработка високосных дней/месяцев в `RabByungDay`.
+- `[DEBT-low]` Instrumented-тест для `MonthScreen`, виджета, `SpecialDays`.
 
 # Reference data sources
 
 - **Svante Janson, "Tibetan Calendar Mathematics"** — arXiv:1401.6285. Формулы Phugpa и Tsurphu.
-- **`tyme4kt`** — https://klibs.io/project/6tail/tyme4kt — официальная Kotlin-обёртка.
+- **`tyme4kt`** — https://github.com/6tail/tyme4kt — Kotlin-реализация.
 - **`tibetan_calendar`** (Dart/Flutter) — референс-реализация Phugpa.
 - **`tibetan-date-calculator`** (JS/NPM) — для скриптовой сверки.
 - **`calcal`** (R) — независимая реализация Phugpa (Dershowitz & Reingold).
 - **Lotsawa House Phugpa Calculator** — https://www.lotsawahouse.org/Static/tools/phugpa.html — веб-эталон.
 - **Merigar / Melong Phugpa Calendar** — эталон для Losar.
 - **`tibetastromed.ru`** — источник описаний дней, целевой сайт для URL.
-
-# Open questions (`[?]`)
-
-1. **`RabByungDay` API:** какие getter-методы доступны для извлечения `year`, `month`, `day`, `isLeapMonth`, `isLeapDay` без парсинга строки `第十七饶迥火马年正月初一`? Проверить через `Ctrl+Space` в IDE или исходники `tyme4kt`.
-2. **Високосные дни/месяцы:** как `tyme4kt` маркирует skipped/duplicate дни? Есть ли метод типа `isLeapDay()` у `RabByungDay`?
+- **Material Design Icons** — https://materialdesignicons.com — иконки фаз луны.

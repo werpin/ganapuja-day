@@ -25,10 +25,8 @@ class MonthViewModel(
     val state: StateFlow<MonthUiState> = _state.asStateFlow()
 
     /**
-     * Загружает все дни указанного месяца.
-     * suspend-функция cache.get вызывается из coroutine-контекста явным
-     * циклом — Sequence.map/Iterable.map не поддерживают suspend-лямбды.
-     * 31 вызов при холодном кэше ≈ 190 мс (см. README/Performance).
+     * Загружает дни указанного месяца. Сохраняет yearMonth в Success,
+     * чтобы UI знал, какой месяц отрисован (для стрелок навигации).
      */
     fun load(yearMonth: YearMonth = YearMonth.now()) {
         viewModelScope.launch {
@@ -47,5 +45,15 @@ class MonthViewModel(
                 MonthUiState.Error(e.message ?: "Unknown error")
             }
         }
+    }
+
+    fun nextMonth() {
+        val current = (state.value as? MonthUiState.Success)?.yearMonth ?: YearMonth.now()
+        load(current.plusMonths(1))
+    }
+
+    fun prevMonth() {
+        val current = (state.value as? MonthUiState.Success)?.yearMonth ?: YearMonth.now()
+        load(current.minusMonths(1))
     }
 }

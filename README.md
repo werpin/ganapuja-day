@@ -1,15 +1,20 @@
-# ganapuja-day
+# Ganapuja Day
 
-Android-приложение с домашним виджетом для отслеживания тибетского лунного календаря (традиция **Phugpa**). Подсвечивает особые дни практики (Ганапуджа / Цог), работает оффлайн, открывает описание дня на tibetastromed.ru.
+Android-приложение с домашним виджетом для отслеживания тибетского лунного календаря (традиция **Phugpa**). Подсвечивает особые дни практики (Ганапуджа / Цог), показывает фазы луны, работает оффлайн и открывает описание дня на tibetastromed.ru.
+
+**Версия:** 1.0.0
+**Лицензия:** MIT
 
 ## Возможности
 
 - Текущий тибетский лунный день на главном экране и в домашнем виджете.
-- Подсветка особых дней практики: **10, 15, 25, 30** лунные дни.
-- Месячный вид: григорианский календарь с подписями лунных дней.
+- Индикатор особых дней практики: **10, 15, 25, 30** лунные дни (Ганапуджа / Цог).
+- Блок «Ближайший день Ганапуджи» с датой и лунным днём (скрывается, если сегодня уже особый день).
+- Месячный вид: григорианский календарь с подписями лунных дней, иконками фаз луны и навигацией по месяцам.
+- Переключатель темы: системная / светлая / тёмная.
 - Переход на описание дня: `https://tibetastromed.ru/docom.php?tdat=M/d/yyyy&tipv=0&type=new&lang=ru`.
 - Полностью оффлайн: **нет разрешения `INTERNET`**, все расчёты локальные.
-- Виджет с обновлением в полночь.
+- Виджет 2×1 с обновлением в полночь и перепланированием после перезагрузки.
 
 ## Стек
 
@@ -17,221 +22,166 @@ Android-приложение с домашним виджетом для отс�
 |---|---|
 | Язык | Kotlin (JVM) |
 | UI | Jetpack Compose + Material 3 |
-| Виджет | Jetpack Glance |
+| Виджет | Jetpack Glance 1.1.1 |
 | Календарь | `cn.6tail:tyme4kt:1.5.0` (Phugpa) |
-| Планировщик | `AlarmManager.setAndAllowWhileIdle` + `WorkManager` fallback |
-| Кэш | `LruCache(32)` + `Mutex` (in-memory, без БД) |
-| Сборка | Gradle Kotlin DSL |
-| Дистрибуция | F-Droid + APK |
-| Min SDK | API 24 (Android 7.0) |
+| Навигация | `androidx.navigation:navigation-compose:2.8.4` |
+| Планировщик | `AlarmManager.setAndAllowWhileIdle` + `BootReceiver` |
+| Кэш | `LinkedHashMap(accessOrder) + Mutex` (in-memory, без БД) |
+| Сборка | Gradle Kotlin DSL, R8 (minify + shrink) |
+| Min SDK | API 26 (Android 8.0) |
+| Target SDK | API 36 |
 
-## Требования к системе
+## Установка
 
-- Debian 13 (trixie), 64-bit (`amd64`)
-- RAM: минимум 8 ГБ, рекомендуется **16 ГБ+** (эмулятор)
-- Диск: ~15 ГБ (IDE + SDK + эмулятор + Gradle cache)
-- CPU: поддержка аппаратной виртуализации (Intel VT-x / AMD-V)
-- Разрешение экрана: рекомендуется 1920×1080
+Скачать APK из [Releases](https://github.com/<user>/ganapuja-day/releases) и установить на устройство с Android 8.0+.
 
-## Установка окружения (Debian 13 + XFCE)
+Виджет: долгое нажатие на домашнем экране → **Виджеты** → **Ganapuja Day** → перетащить на экран.
 
-### 1. JDK
+## Сборка из исходников
+
+### Требования
+
+- Debian 13 (trixie), 64-bit (`amd64`) — или другая Linux-система
+- JDK 21
+- Android SDK (API 36)
+- Android Studio 2026.2.1 (опционально, но рекомендуется)
+- 8 ГБ RAM минимум, 16 ГБ рекомендуется для эмулятора
+
+### Установка окружения
 
 ```bash
+# JDK
 sudo apt update
 sudo apt install -y default-jdk
-java -version
-# Ожидается: openjdk version "21.x"
-```
+java -version  # openjdk version "21.x"
 
-> Debian 13 поставляет OpenJDK 21. Если проект потребует строго JDK 17 — установить Eclipse Temurin вручную.
-
-### 2. KVM (критично для эмулятора)
-
-```bash
-sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients \
-                    bridge-utils cpu-checker
+# KVM для эмулятора
+sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils cpu-checker
 sudo adduser "$USER" kvm
 sudo adduser "$USER" libvirt
 # ВАЖНО: выйти из сессии и войти заново
-kvm-ok
-# Ожидается: INFO: /dev/kvm exists / KVM acceleration can be used
+kvm-ok  # INFO: KVM acceleration can be used
 ```
-
-### 3. Android Studio 2026.2.1
-
+Android Studio: скачать с https://developer.android.com/studio, распаковать в /opt, запустить Setup Wizard.
+Сборка
 ```bash
-cd ~/Downloads
-wget https://redirector.gvt1.com/edgedl/android/studio/ide-zips/2026.2.1.20/android-studio-2026.2.1.20-linux.tar.gz
-sudo tar -xzf android-studio-*.tar.gz -C /opt/
-/opt/android-studio/bin/studio.sh
-```
 
-Setup Wizard: принять значения по умолчанию (SDK, Platform Tools, эмулятор).
+git clone https://github.com/<user>/ganapuja-day.git
+cd ganapuja-day
 
-### 4. Переменные окружения
-
-Добавить в `~/.bashrc`:
-
-```bash
-export ANDROID_HOME="$HOME/Android/Sdk"
-export PATH="$PATH:$ANDROID_HOME/emulator"
-export PATH="$PATH:$ANDROID_HOME/platform-tools"
-```
-
-Применить: `source ~/.bashrc`.
-
-### 5. Настройки XFCE
-
-- **Горячие клавиши:** `Настройки → Клавиатура → Сочетания клавиш`. Убрать конфликты с `Ctrl+Alt+...`, которые использует Android Studio.
-- **Сессия:** при нестабильности эмулятора на Wayland — зайти в X11-сессию XFCE.
-
-### 6. Ярлык в меню (опционально)
-
-```bash
-cat > ~/.local/share/applications/android-studio.desktop <<'EOF'
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Android Studio
-Exec=/opt/android-studio/bin/studio.sh %f
-Icon=/opt/android-studio/icons/studio.svg
-Categories=Development;IDE;
-Terminal=false
-StartupNotify=true
-EOF
-```
-
-## Создание проекта (первый раз)
-
-В Android Studio: **New Project → Empty Activity**.
-
-| Поле | Значение |
-|---|---|
-| Name | `ganapuja-day` |
-| Package name | `com.ganapujaday` |
-| Save location | `~/hdd/projects/ganapuja-day` |
-| Language | Kotlin |
-| Minimum SDK | API 24 |
-
-Затем инициализация Git:
-
-```bash
-cd ~/hdd/projects/ganapuja-day
-git init -b main
-git add .
-git commit -m "initial commit: Empty Activity scaffold"
-```
-
-Создание GitHub-репозитория:
-
-```bash
-sudo apt install gh -y
-gh auth login   # GitHub.com → HTTPS → browser
-gh repo create ganapuja-day --public --source=. --remote=origin --push
-```
-
-## Сборка и запуск
-
-```bash
 # Debug
 ./gradlew :app:assembleDebug
 ./gradlew :app:installDebug
 
-# Release
+# Release (подписанный)
 ./gradlew :app:assembleRelease
-# APK: app/build/outputs/apk/release/app-release-unsigned.apk
-
-# Проверка зависимостей
-./gradlew :app:dependencies --configuration releaseRuntimeClasspath | grep -i tyme
-# Ожидается:
-# +--- cn.6tail:tyme4kt:1.5.0
-# |    \--- cn.6tail:tyme4kt-android:1.5.0
 ```
-
-## Тесты
-
+APK появится в app/build/outputs/apk/release/.
+Тесты
 ```bash
-# Unit
+
 ./gradlew :app:testDebugUnitTest
-
-# Только бенчмарк
-./gradlew :app:testDebugUnitTest --tests "com.ganapujaday.Tyme4ktBenchmarkTest.benchmarkTibetanDayCalculation" -i
-
-# Только сверка дат
-./gradlew :app:testDebugUnitTest --tests "com.ganapujaday.Tyme4ktBenchmarkTest.printTibetanDatesForCrossCheck" -i
-
-# Instrumented (нужен эмулятор / устройство)
-./gradlew :app:connectedDebugAndroidTest
 ```
+Покрытие: 22 теста (репозиторий, кэш, URL, форматтер, особые дни).
+Структура проекта
+```text
 
-## Performance
+app/src/main/java/com/ganapujaday/
+├── core/
+│   ├── TibetanDay.kt              # Модель дня
+│   ├── TibetanDayRepository.kt    # Интерфейс
+│   ├── Tyme4KtRepository.kt       # Реализация на tyme4kt
+│   ├── TibetanDateFormatter.kt    # Форматирование для UI
+│   ├── SpecialDays.kt             # Поиск ближайшего особого дня
+│   └── MoonIcons.kt               # Выбор иконки фазы луны
+├── cache/
+│   └── TibetanDayCache.kt         # LRU + Mutex
+├── url/
+│   └── TibetAstroMedUrl.kt        # Формирование URL
+├── ui/
+│   ├── DayScreen.kt               # Главный экран
+│   ├── DayViewModel.kt
+│   ├── MonthScreen.kt             # Месячный календарь
+│   ├── MonthViewModel.kt
+│   ├── ThemeMenuButton.kt         # Переключатель темы
+│   └── AppTheme.kt                # Material 3 + CompositionLocal
+├── widget/
+│   ├── GanapujaDayWidget.kt       # GlanceAppWidget
+│   ├── GanapujaDayWidgetReceiver.kt
+│   ├── WidgetScheduler.kt         # AlarmManager
+│   ├── WidgetUpdateReceiver.kt    # DATE_CHANGED / TIME_CHANGED
+│   └── BootReceiver.kt            # BOOT_COMPLETED
+└── MainActivity.kt
+```
+Виджет
 
-Бенчмарк `tyme4kt 1.5.0` на JVM (100 вызовов, 8 дат включая граничные):
+    Размер: 2×1 (горизонтальный).
 
-| Метрика | Значение |
-|---------|----------|
-| avg     | 6.40 ms  |
-| p50     | 6.18 ms  |
-| p95     | 7.77 ms  |
-| max     | 11.32 ms |
+    Содержимое: лунный день + иконка фазы луны. В особые дни — «Ганапуджа».
 
-Расчёт одной даты — **~6 мс**. Кэш `LruCache(32)` сокращает повторные вызовы до 0 мс, но не критичен для производительности. Месячный вид (30 дат) без кэша ≈ 190 мс, с кэшем ≈ 0 мс.
+    Обновление: AlarmManager в полночь + BootReceiver для перепланирования после перезагрузки + WidgetUpdateReceiver на смену даты / часового пояса.
 
-Измерено: unit test, warm JIT.
+    Клик: открывает приложение.
 
-## Validation
+    Ограничения:
+
+        Только домашний экран (home_screen), не локскрин.
+
+        Точность обновления: ±9 минут в Doze.
+
+Производительность
+
+Бенчмарк tyme4kt 1.5.0 на JVM (100 вызовов, 8 дат):
+Метрика ↕
+Значение ↕
+avg	6.40 ms
+p50	6.18 ms
+p95	7.77 ms
+max	11.32 ms
+
+Расчёт одной даты — ~6 мс. Кэш LruCache(32) сокращает повторные вызовы до 0 мс.
+
+Размер APK: 2.4 МБ (release с R8), 6.3 МБ (debug без R8).
+Валидация
 
 Сверка 10 дат с эталонным Phugpa-калькулятором (Lotsawa House / Merigar / Xinhua):
 
-**Losar 2026 = 2026-02-18** (подтверждено Xinhua, CGTN, Merigar/Melong, Indiana University).
+Losar 2026 = 2026-02-18 (подтверждено Xinhua, CGTN, Merigar, Indiana University).
+Дата ↕
+tyme4kt ↕Эталон ↕
+2026-02-18	第十七饶迥火马年正月初一	Losar = 18 Feb 2026, Fire Horse
+2026-02-17	木蛇年十二月三十	Канун Losar
+2026-02-19	火马年正月初二	2-й день нового года
 
-| Date | tyme4kt output | Reference |
-|------|----------------|-----------|
-| 2026-02-18 | 第十七饶迥**火马年正月初一** (17-й Rabjung, Огненная Лошадь, 1-й месяц, 1-й день) | Losar = 18 Feb 2026, Fire Horse |
-| 2026-02-17 | 木蛇年十二月三十 (Wood Snake, 12-й месяц, 30-й день) | Канун Losar |
-| 2026-02-19 | 火马年正月初二 (Fire Horse, 1-й месяц, 2-й день) | 2-й день нового года |
+Результат: 10/10 совпадений. tyme4kt корректно реализует Phugpa.
+Разрешения
 
-**Результат: 10/10 совпадений.** `tyme4kt` корректно реализует Phugpa.
+Только RECEIVE_BOOT_COMPLETED для перепланирования виджета после перезагрузки. Нет INTERNET — все расчёты локальные, ссылка на tibetastromed.ru открывается через браузер.
+Ограничения
 
-## Структура проекта (целевая)
+    Традиция: только Phugpa. Расхождения с Tsurphu-калькуляторами на 1–2 дня в месяц — ожидаемое поведение, не баг.
 
-```
-app/
-├── src/main/
-│   ├── java/com/ganapujaday/
-│   │   ├── core/           # TibetanDayRepository, Tyme4KtRepository
-│   │   ├── cache/          # TibetanDayCache (LruCache + Mutex)
-│   │   ├── url/            # TibetAstroMedUrl (валидация, форматирование)
-│   │   ├── ui/             # Compose-экраны: DayScreen, MonthScreen
-│   │   ├── widget/         # GlanceAppWidget, GlanceAppWidgetReceiver
-│   │   └── scheduler/      # AlarmScheduler, BootReceiver
-│   ├── test/java/com/ganapujaday/   # Unit-тесты, бенчмарки
-│   └── AndroidManifest.xml
-└── build.gradle.kts
-```
+    Особые дни: 10, 15, 25, 30. Логика задана в TibetanDay.SPECIAL_DAYS.
 
-## Разрешения в манифесте
+    Диапазон дат: 1900–2100 (ограничение TibetAstroMedUrl).
 
-Только эти:
+    Локализация: русский язык. Английский — [DEBT-low].
 
-```xml
-<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-```
+Документация
 
-Никаких `INTERNET`, `WAKE_LOCK`, `SCHEDULE_EXACT_ALARM`, `FOREGROUND_SERVICE`.
+    CONTEXT.md — структурированный контекст для AI и нового разработчика.
 
-## Ограничения и нюансы
+    CHANGELOG.md — история версий.
 
-- **Традиция:** только **Phugpa**. Расхождения с Tsurphu-калькуляторами на 1–2 дня в месяц — ожидаемое поведение, не баг.
-- **Точность обновления виджета:** ±10 минут от полуночи (inexact alarm).
-- **Формат URL:** `M/d/yyyy` (месяц/день/год), подтверждён вручную.
-- **Не использовать Docker** для dev-окружения — накладные расходы превышают выгоду. Docker оправдан только в CI/CD.
+Лицензия
 
-## Документация
+MIT License. Автор: deepseek. Идея: werpin.
+Благодарности
 
-- `CONTEXT.md` — структурированный контекст для AI-моделей и нового разработчика (состояние, ADR, ограничения, следующие шаги).
+    Svante Janson, "Tibetan Calendar Mathematics" — математика Phugpa.
 
-## Лицензия
+    6tail/tyme4kt — Kotlin-реализация тибетского календаря.
 
-[TBD]
+    tibetastromed.ru — описания дней.
+
+    Material Design Icons — иконки фаз луны.

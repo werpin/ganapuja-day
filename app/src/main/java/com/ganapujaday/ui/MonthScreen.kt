@@ -52,6 +52,9 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Today
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +79,24 @@ fun MonthScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.prevMonth() }) {
+                        Icon(
+                            imageVector = Icons.Filled.ChevronLeft,
+                            contentDescription = "Предыдущий месяц",
+                        )
+                    }
+                    IconButton(onClick = { viewModel.load() }) {
+                        Icon(
+                            imageVector = Icons.Filled.Today,
+                            contentDescription = "Текущий месяц",
+                        )
+                    }
+                    IconButton(onClick = { viewModel.nextMonth() }) {
+                        Icon(
+                            imageVector = Icons.Filled.ChevronRight,
+                            contentDescription = "Следующий месяц",
+                        )
+                    }
                     ThemeMenuButton()
                 },
             )

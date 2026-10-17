@@ -106,7 +106,7 @@ fun DayScreen(
                     ) {
                         Text(stringResource(R.string.open_description))
                     }
-                    if (s.nextSpecial != null) {
+                    if (!s.day.isSpecial && s.nextSpecial != null) {
                         Spacer(Modifier.height(24.dp))
                         NextSpecialCard(s.nextSpecial)
                     }
