@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Фиолетовый градиент -->
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8A2BE2" />   <!-- BlueViolet -->
+      <stop offset="100%" stop-color="#4B0082" /> <!-- Indigo -->
+    </linearGradient>
+    
+    <!-- Маска для создания формы луны (серпа) -->
+    <mask id="moonMask">
+      <rect width="512" height="512" fill="white" />
+      <!-- Вырезаем внутреннюю часть, чтобы получился серп -->
+      <circle cx="320" cy="256" r="140" fill="black" />
+    </mask>
+  </defs>
+
+  <!-- Основной круг луны с градиентом и маской -->
+  <circle 
+    cx="256" 
+    cy="256" 
+    r="180" 
+    fill="url(#purpleGrad)" 
+    mask="url(#moonMask)" 
+  />
+  
+  <!-- Точка Бинду (центр/источник света), характерная для тибетских символов -->
+  <circle 
+    cx="256" 
+    cy="256" 
+    r="12" 
+    fill="url(#purpleGrad)" 
+  />
+</svg>
