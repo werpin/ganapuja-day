@@ -1,5 +1,6 @@
 package com.ganapujaday.ui
 
+import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +19,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,6 +37,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -44,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ganapujaday.R
 import com.ganapujaday.core.TibetanDay
+import com.ganapujaday.core.moonIconFor
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -70,6 +74,9 @@ fun MonthScreen(
                             contentDescription = stringResource(R.string.open_day),
                         )
                     }
+                },
+                actions = {
+                    ThemeMenuButton()
                 },
             )
         },
@@ -171,6 +178,9 @@ private fun DayCell(day: TibetanDay, isToday: Boolean, onClick: () -> Unit) {
         null
     }
 
+    // Цвет иконки берем из текущей темы (onSurfaceVariant, чтобы не сливаться с текстом)
+    val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+
     Card(
         modifier = Modifier
             .aspectRatio(0.85f)
@@ -193,12 +203,15 @@ private fun DayCell(day: TibetanDay, isToday: Boolean, onClick: () -> Unit) {
             )
             Spacer(Modifier.width(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.DarkMode,
-                    contentDescription = null,
-                    modifier = Modifier.size(10.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                val icon = moonIconFor(day.day)
+                if (icon != null) {
+                    Icon(
+                        painter = painterResource(id = icon),
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = iconColor,
+                    )
+                }
                 Spacer(Modifier.width(2.dp))
                 Text(
                     text = day.day.toString(),

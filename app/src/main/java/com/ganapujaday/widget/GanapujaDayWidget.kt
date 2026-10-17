@@ -31,6 +31,7 @@ import com.ganapujaday.MainActivity
 import com.ganapujaday.cache.TibetanDayCache
 import com.ganapujaday.core.Tyme4KtRepository
 import java.time.LocalDate
+import com.ganapujaday.core.moonIconFor
 
 class GanapujaDayWidget : GlanceAppWidget() {
 

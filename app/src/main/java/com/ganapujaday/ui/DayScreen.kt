@@ -60,6 +60,7 @@ fun DayScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
+                    ThemeMenuButton()
                     IconButton(onClick = onOpenMonth) {
                         Icon(
                             imageVector = Icons.Filled.CalendarMonth,
