@@ -24,6 +24,6 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Log.i(TAG, "Received: ${intent.action}")
         WidgetScheduler.updateNow(context)
-        WidgetScheduler.scheduleNext(context)
+        WidgetScheduler.rescheduleAlarm(context)  // было: scheduleNext(context)
     }
 }

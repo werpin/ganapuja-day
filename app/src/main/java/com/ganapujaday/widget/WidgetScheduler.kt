@@ -6,6 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.glance.appwidget.updateAll
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -13,69 +16,35 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 
-/**
- * Планировщик обновления виджета раз в сутки в полночь.
- *
- * Почему AlarmManager, а не только WorkManager:
- * - WorkManager PeriodicWorkRequest имеет минимальный интервал 15 минут
- *   и не гарантирует точное время. Для календаря нужна полночь.
- * - setAndAllowWhileIdle срабатывает даже в Doze (с задержкой до ~9 минут).
- * - Квоты exact alarm на Android 14+ не используем (SET_AND_ALLOW_WHILE_IDLE
- *   не требует разрешения).
- *
- * Почему WorkManager как fallback:
- * - AlarmManager может быть убит системой при агрессивной экономии батареи
- *   (некоторые MIUI/EMUI/Oppo).
- * - WorkManager с 24-часовым интервалом страхует: даже если alarm потерян,
- *   следующее обновление придёт в течение суток.
- */
 object WidgetScheduler {
 
     private const val TAG = "WidgetScheduler"
     private const val REQUEST_CODE = 1001
 
     /**
-     * Планирует следующее обновление виджета на ближайшую полночь + 30 секунд.
-     * Вызывается при создании виджета (onEnabled) и после каждого обновления.
+     * Полное планирование: alarm + periodic WorkManager.
+     * Вызывать ТОЛЬКО из onEnabled и BootReceiver.
      */
     fun scheduleNext(context: Context) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-
-        val triggerAt = nextMidnight()
-        val pendingIntent = buildPendingIntent(context)
-
-        try {
-            alarmManager.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                triggerAt,
-                pendingIntent,
-            )
-            Log.i(TAG, "Scheduled widget update at ${LocalDateTime.ofInstant(
-                java.time.Instant.ofEpochMilli(triggerAt),
-                ZoneId.systemDefault()
-            )}")
-        } catch (e: SecurityException) {
-            // На Android 12+ может отсутствовать SCHEDULE_EXACT_ALARM.
-            // setAndAllowWhileIdle не требует разрешения, но если попадём сюда —
-            // логируем и полагаемся на WorkManager fallback.
-            Log.w(TAG, "AlarmManager rejected, relying on WorkManager fallback", e)
-        }
+        scheduleAlarm(context)
+        enqueuePeriodicWork(context)
     }
 
     /**
-     * Отменяет запланированный alarm. Вызывается при удалении последнего виджета (onDisabled).
+     * Перепланировать только alarm на завтра.
+     * Вызывать из WidgetUpdateReceiver и WidgetUpdateWorker после обновления.
      */
+    fun rescheduleAlarm(context: Context) {
+        scheduleAlarm(context)
+    }
+
     fun cancel(context: Context) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarmManager.cancel(buildPendingIntent(context))
-        Log.i(TAG, "Cancelled widget update alarm")
+        cancelAlarm(context)
+        cancelPeriodicWork(context)
     }
 
-    /**
-     * Немедленно обновляет все экземпляры виджета.
-     * Вызывается из BroadcastReceiver при получении ACTION_UPDATE.
-     */
     fun updateNow(context: Context) {
         CoroutineScope(Dispatchers.Default).launch {
             try {
@@ -87,11 +56,51 @@ object WidgetScheduler {
         }
     }
 
-    /**
-     * Следующая полночь + 30 секунд в текущем часовом поясе.
-     * +30 секунд — чтобы гарантированно попасть в новый день,
-     * даже если часы системы сдвинуты на несколько секунд.
-     */
+    private fun scheduleAlarm(context: Context) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        try {
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                nextMidnight(),
+                buildPendingIntent(context),
+            )
+            Log.i(TAG, "Scheduled alarm at midnight")
+        } catch (e: SecurityException) {
+            Log.w(TAG, "AlarmManager rejected", e)
+        }
+    }
+
+    private fun cancelAlarm(context: Context) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.cancel(buildPendingIntent(context))
+        Log.i(TAG, "Cancelled alarm")
+    }
+
+    private fun enqueuePeriodicWork(context: Context) {
+        val request = PeriodicWorkRequestBuilder<WidgetUpdateWorker>(24, TimeUnit.HOURS)
+            .setInitialDelay(computeInitialDelayMinutes(), TimeUnit.MINUTES)
+            .addTag(WidgetUpdateWorker.UNIQUE_NAME)
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            WidgetUpdateWorker.UNIQUE_NAME,
+            ExistingPeriodicWorkPolicy.UPDATE,
+            request,
+        )
+        Log.i(TAG, "Enqueued periodic worker")
+    }
+
+    private fun cancelPeriodicWork(context: Context) {
+        WorkManager.getInstance(context).cancelUniqueWork(WidgetUpdateWorker.UNIQUE_NAME)
+        Log.i(TAG, "Cancelled periodic worker")
+    }
+
+    private fun computeInitialDelayMinutes(): Long {
+        val now = LocalDateTime.now()
+        val nextMidnight = now.toLocalDate().plusDays(1).atTime(LocalTime.of(0, 15))
+        return java.time.Duration.between(now, nextMidnight).toMinutes()
+    }
+
     private fun nextMidnight(): Long {
         val zone = ZoneId.systemDefault()
         val tomorrow = LocalDate.now(zone).plusDays(1)
