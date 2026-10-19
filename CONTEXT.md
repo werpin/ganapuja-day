@@ -121,6 +121,13 @@
 
 **ADR-021:** `signingConfig = signingConfigs.debug` для release временно. Почему: позволяет тестировать release-сборку на эмуляторе. **Заменить на настоящий keystore перед публикацией.** `[DEBT-high]`.
 
+**ADR-023:** Двойной механизм обновления виджета для MIUI/EMUI/Oppo:
+- `AlarmManager.setAndAllowWhileIdle` — точное срабатывание в полночь на «чистом» Android.
+- `WorkManager.PeriodicWorkRequest(24h)` — гарантированное обновление в течение суток, даже если alarm заблокирован.
+- `scheduleNext()` (оба) — только из `onEnabled` и `BootReceiver`.
+- `rescheduleAlarm()` (только alarm) — из `WidgetUpdateReceiver` и `WidgetUpdateWorker`.
+- `Result.success()` вместо `Result.retry()` в Worker — не останавливаем 24-часовой цикл при разовом сбое.
+
 # Constraints
 
 - **Традиция:** только **Phugpa**. Tsurphu-расхождения — не баг. Указано в README.
